@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Peta Interaktif Use Case - Sistem Informasi Minimarket</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .chart-container {
+        position: relative;
+        width: 100%;
+        margin-left: auto;
+        margin-right: auto;
+        height: 350px;
+      }
+      @media (min-width: 768px) {
+        .chart-container {
+          height: 400px;
+        }
+      }
+      .actor-card {
+        transition: all 0.3s ease;
+        cursor: pointer;
+      }
+      .actor-card.active {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1),
+          0 4px 6px -4px rgb(0 0 0 / 0.1);
+        background-color: #0d9488;
+        color: white;
+      }
+      .actor-card:hover:not(.active) {
+        background-color: #f0fdfa;
+      }
+      .accordion-content {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+      }
+      .accordion-open .accordion-content {
+        max-height: 1000px;
+      }
+      .rotate-180 {
+        transform: rotate(180deg);
+      }
+      .empty-state {
+        animation: fadeIn 0.5s ease-in;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-stone-800">
+    <div class="container mx-auto p-4 md:p-8">
+      <header class="text-center mb-8 md:mb-12">
+        <h1 class="text-3xl md:text-4xl font-bold text-teal-700">
+          Peta Interaktif Use Case
+        </h1>
+        <p class="mt-2 text-lg text-stone-600">Sistem Informasi Minimarket</p>
+      </header>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
+        <aside class="lg:col-span-3">
+          <div
+            class="bg-white p-4 md:p-6 rounded-xl shadow-md sticky top-4 md:top-8"
+          >
+            <h2 class="text-xl font-bold mb-3 border-b pb-2 text-teal-700">
+              Pilih Aktor
+            </h2>
+            <p class="text-sm text-stone-600 mb-4">
+              Klik pada salah satu peran di bawah ini untuk melihat semua tugas
+              (use case) yang dapat mereka lakukan dalam sistem.
+            </p>
+            <div id="actors-list" class="space-y-2 md:space-y-3"></div>
+          </div>
+        </aside>
+
+        <main class="lg:col-span-6">
+          <div
+            class="bg-white p-4 md:p-6 rounded-xl shadow-md min-h-[300px] md:min-h-[400px]"
+          >
+            <h2
+              id="usecase-title"
+              class="text-xl md:text-2xl font-bold mb-4 text-teal-700"
+            >
+              Detail Tugas (Use Case)
+            </h2>
+            <div id="usecase-details" class="empty-state">
+              <div class="text-center py-12 md:py-16 text-stone-500">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="mx-auto h-12 w-12 opacity-70"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="1"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                  />
+                </svg>
+                <p class="mt-4 font-semibold">Silakan pilih seorang aktor</p>
+                <p class="text-sm mt-1">
+                  Tugas yang terkait akan ditampilkan di sini.
+                </p>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        <section class="lg:col-span-3">
+          <div class="bg-white p-4 md:p-6 rounded-xl shadow-md">
+            <h2 class="text-xl font-bold mb-3 text-teal-700">
+              Distribusi Tugas
+            </h2>
+            <p class="text-sm text-stone-600 mb-4">
+              Bagan ini menunjukkan jumlah tugas yang ditangani oleh setiap
+              peran.
+            </p>
+            <div class="chart-container">
+              <canvas id="useCaseChart"></canvas>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer
+        class="text-center mt-8 md:mt-12 py-4 border-t text-stone-500 text-sm"
+      >
+        <p>Dibuat pada 9 Juni 2025</p>
+      </footer>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const useCaseData = {
+          actors: [
+            { id: "kasir", name: "Kasir", responsible: "Iqbal", icon: "🛒" },
+            {
+              id: "pelanggan",
+              name: "Pelanggan",
+              responsible: "Celsyka",
+              icon: "🧑",
+            },
+            {
+              id: "kepala_toko",
+              name: "Kepala Toko",
+              responsible: "Adep",
+              icon: "👔",
+            },
+            {
+              id: "supplier",
+              name: "Supplier",
+              responsible: "Tegar",
+              icon: "🚚",
+            },
+            {
+              id: "kepala_gudang",
+              name: "Kepala Gudang",
+              responsible: "Danil",
+              icon: "📦",
+            },
+            {
+              id: "admin_owner",
+              name: "Admin/Owner",
+              responsible: "Andika",
+              icon: "🔑",
+            },
+            {
+              id: "bendahara",
+              name: "Bendahara",
+              responsible: "Adna",
+              icon: "💰",
+            },
+          ],
+          use_cases: {
+            kasir: [
+              {
+                title: "Mengelola Penjualan",
+                objective:
+                  "Memfasilitasi proses transaksi pembelian barang oleh pelanggan.",
+                flow: [
+                  "Memulai transaksi baru.",
+                  "Memindai atau memasukkan kode barang.",
+                  "Menghitung total belanja.",
+                  "Memproses pembayaran (tunai/non-tunai).",
+                  "Mencetak struk dan menyelesaikan transaksi.",
+                  "Sistem otomatis mengurangi stok.",
+                ],
+              },
+            ],
+            pelanggan: [
+              {
+                title: "Melihat Informasi Produk dan Harga",
+                objective:
+                  "Memungkinkan pelanggan untuk memeriksa detail produk dan harga.",
+                flow: [
+                  "Melihat display harga di rak.",
+                  "Meminta Kasir untuk memeriksa harga.",
+                  "Menggunakan alat price checker (jika tersedia).",
+                ],
+              },
+            ],
+            kepala_toko: [
+              {
+                title: "Memesan Barang ke Supplier",
+                objective:
+                  "Melakukan pengadaan barang untuk mengisi kembali stok.",
+                flow: [
+                  "Melihat laporan stok dan penjualan.",
+                  "Membuat draf pesanan pembelian (PO).",
+                  "Mengirimkan pesanan ke Supplier.",
+                  "Sistem mencatat status PO.",
+                ],
+              },
+              {
+                title: "Mengakses Laporan Penjualan",
+                objective:
+                  "Memantau kinerja penjualan toko untuk pengambilan keputusan operasional.",
+                flow: [
+                  "Membuka menu Laporan Penjualan.",
+                  "Menerapkan filter (periode, kategori, dll).",
+                  "Melihat laporan dalam bentuk tabel atau grafik.",
+                  "Mencetak atau mengekspor laporan.",
+                ],
+              },
+            ],
+            supplier: [
+              {
+                title: "Menyediakan Data dan Menerima Pesanan",
+                objective:
+                  "Berperan sebagai pihak eksternal yang memasok barang dan data produk.",
+                flow: [
+                  "Menyediakan informasi produk dan harga kepada minimarket.",
+                  "Menerima Pesanan Pembelian (PO) dari Kepala Toko.",
+                  "Mengirimkan barang sesuai pesanan.",
+                ],
+              },
+            ],
+            kepala_gudang: [
+              {
+                title: "Mengelola Stok Barang",
+                objective:
+                  "Memastikan akurasi data stok dan ketersediaan barang di gudang.",
+                flow: [
+                  "Menerima barang dari supplier dan memverifikasinya.",
+                  "Mencatat penerimaan barang ke sistem untuk memperbarui stok.",
+                  "Mencatat pengeluaran barang (ke toko/retur).",
+                  "Melakukan inventarisasi (stock opname) secara berkala.",
+                ],
+              },
+            ],
+            admin_owner: [
+              {
+                title: "Mengelola Data Supplier",
+                objective:
+                  "Menambah, mengubah, atau menghapus informasi mengenai supplier.",
+                flow: [
+                  "Membuka menu Kelola Supplier.",
+                  "Menambah data supplier baru.",
+                  "Mengubah data supplier yang ada.",
+                  "Menghapus data supplier yang tidak aktif.",
+                ],
+              },
+              {
+                title: "Mengelola Data Karyawan",
+                objective: "Mengelola informasi data karyawan minimarket.",
+                flow: [
+                  "Membuka menu Kelola Karyawan.",
+                  "Menambah data karyawan baru beserta hak aksesnya.",
+                  "Mengubah data karyawan.",
+                  "Menonaktifkan data karyawan yang sudah tidak bekerja.",
+                ],
+              },
+              {
+                title: "Mengelola Pengaturan Sistem",
+                objective:
+                  "Mengkonfigurasi parameter operasional dan keamanan sistem.",
+                flow: [
+                  "Membuka menu Pengaturan Sistem.",
+                  "Mengatur hak akses pengguna.",
+                  "Mengkonfigurasi perangkat keras (misal: printer).",
+                  "Menjadwalkan backup data otomatis.",
+                ],
+              },
+            ],
+            bendahara: [
+              {
+                title: "Mengelola Laporan Keuangan",
+                objective:
+                  "Menghasilkan laporan keuangan untuk analisis kinerja finansial.",
+                flow: [
+                  "Membuka menu Laporan Keuangan.",
+                  "Memilih jenis laporan (Laba Rugi, Penjualan, dll).",
+                  "Menentukan periode waktu laporan.",
+                  "Menghasilkan, melihat, dan mencetak laporan.",
+                ],
+              },
+            ],
+          },
+        };
+
+        const actorsListContainer = document.getElementById("actors-list");
+        const useCaseTitle = document.getElementById("usecase-title");
+        const useCaseDetailsContainer =
+          document.getElementById("usecase-details");
+        let currentActiveActor = null;
+
+        function renderActors() {
+          actorsListContainer.innerHTML = "";
+          useCaseData.actors.forEach((actor) => {
+            const card = document.createElement("div");
+            card.className =
+              "actor-card p-3 md:p-4 bg-stone-100 rounded-lg flex items-center space-x-3";
+            card.dataset.id = actor.id;
+            card.innerHTML = `
+                        <div class="text-2xl">${actor.icon}</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-bold truncate">${actor.name}</div>
+                            <div class="text-xs md:text-sm text-stone-500 truncate">${actor.responsible}</div>
+                        </div>
+                    `;
+            card.addEventListener("click", () => displayUseCases(actor.id));
+            actorsListContainer.appendChild(card);
+          });
+
+          // Aktifkan aktor pertama secara default
+          if (useCaseData.actors.length > 0) {
+            displayUseCases(useCaseData.actors[0].id);
+          }
+        }
+
+        function displayUseCases(actorId) {
+          const actor = useCaseData.actors.find((a) => a.id === actorId);
+          const cases = useCaseData.use_cases[actorId] || [];
+
+          if (currentActiveActor) {
+            currentActiveActor.classList.remove("active");
+          }
+          const newActiveActor = actorsListContainer.querySelector(
+            `[data-id="${actorId}"]`
+          );
+          newActiveActor.classList.add("active");
+          currentActiveActor = newActiveActor;
+
+          useCaseTitle.textContent = `Tugas untuk: ${actor.name}`;
+          useCaseDetailsContainer.classList.remove("empty-state");
+          useCaseDetailsContainer.innerHTML = "";
+
+          if (cases.length === 0) {
+            useCaseDetailsContainer.innerHTML = `
+                        <div class="text-center py-12 text-stone-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <p class="mt-4 font-semibold">Tidak ada tugas yang didefinisikan</p>
+                            <p class="text-sm mt-1">Peran ini belum memiliki tugas spesifik dalam sistem.</p>
+                        </div>
+                    `;
+            return;
+          }
+
+          const accordionContainer = document.createElement("div");
+          accordionContainer.className = "space-y-3";
+
+          cases.forEach((uc, index) => {
+            const wrapper = document.createElement("div");
+            wrapper.className = "border rounded-lg overflow-hidden";
+            wrapper.innerHTML = `
+                        <button class="w-full text-left p-3 md:p-4 bg-stone-50 hover:bg-stone-100 font-semibold flex justify-between items-center">
+                            <span class="text-base md:text-lg">${
+                              uc.title
+                            }</span>
+                            <svg class="w-5 h-5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div class="accordion-content">
+                            <div class="p-3 md:p-4 bg-white">
+                                <h4 class="font-semibold text-teal-600 mb-1">Tujuan:</h4>
+                                <p class="mb-3 text-sm md:text-base">${
+                                  uc.objective
+                                }</p>
+                                <h4 class="font-semibold text-teal-600 mb-1">Alur Kerja Umum:</h4>
+                                <ul class="list-disc pl-5 space-y-1 text-sm md:text-base">
+                                    ${uc.flow
+                                      .map(
+                                        (step) =>
+                                          `<li class="py-1">${step}</li>`
+                                      )
+                                      .join("")}
+                                </ul>
+                            </div>
+                        </div>
+                    `;
+            const button = wrapper.querySelector("button");
+            const content = wrapper.querySelector(".accordion-content");
+            const icon = wrapper.querySelector("svg");
+
+            button.addEventListener("click", () => {
+              wrapper.classList.toggle("accordion-open");
+              icon.classList.toggle("rotate-180");
+            });
+
+            accordionContainer.appendChild(wrapper);
+          });
+          useCaseDetailsContainer.appendChild(accordionContainer);
+        }
+
+        function renderChart() {
+          const ctx = document.getElementById("useCaseChart").getContext("2d");
+          const labels = useCaseData.actors.map((a) => a.name);
+          const data = useCaseData.actors.map(
+            (a) => (useCaseData.use_cases[a.id] || []).length
+          );
+          const backgroundColors = [
+            "rgba(13, 148, 136, 0.7)",
+            "rgba(45, 212, 191, 0.7)",
+            "rgba(20, 184, 166, 0.7)",
+            "rgba(15, 118, 110, 0.7)",
+            "rgba(5, 150, 105, 0.7)",
+            "rgba(16, 185, 129, 0.7)",
+            "rgba(6, 95, 70, 0.7)",
+          ];
+
+          new Chart(ctx, {
+            type: "bar",
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: "Jumlah Tugas per Aktor",
+                  data: data,
+                  backgroundColor: backgroundColors,
+                  borderColor: backgroundColors.map((color) =>
+                    color.replace("0.7", "1")
+                  ),
+                  borderWidth: 1,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              indexAxis: "y",
+              scales: {
+                x: {
+                  beginAtZero: true,
+                  ticks: {
+                    stepSize: 1,
+                    precision: 0,
+                  },
+                  grid: {
+                    display: true,
+                    color: "rgba(0, 0, 0, 0.05)",
+                  },
+                },
+                y: {
+                  grid: {
+                    display: false,
+                  },
+                },
+              },
+              plugins: {
+                legend: {
+                  display: false,
+                },
+                tooltip: {
+                  backgroundColor: "rgba(13, 148, 136, 0.9)",
+                  titleColor: "#fff",
+                  bodyColor: "#fff",
+                  callbacks: {
+                    label: function (context) {
+                      return `Jumlah Tugas: ${context.parsed.x}`;
+                    },
+                  },
+                },
+              },
+              animation: {
+                duration: 1000,
+                easing: "easeOutQuart",
+              },
+            },
+          });
+        }
+
+        renderActors();
+        renderChart();
+      });
+    </script>
+  </body>
+</html>
